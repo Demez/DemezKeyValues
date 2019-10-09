@@ -6,8 +6,13 @@ import codecs
 
 
 class DemezKeyValueBase:
-    def __init__(self):
-        pass
+    def GetAllItems(self, item_key):
+        items = []
+        if self._value_type == list:
+            for value in self.value:
+                if value.key == item_key:
+                    items.append(value)
+        return items
 
 
 class DemezKeyValue(DemezKeyValueBase):
