@@ -6,7 +6,7 @@ import codecs
 
 
 class DemezKeyValueBase:
-    def GetAllItems(self, item_key):
+    def GetAllItems(self, item_key: str) -> list:
         items = []
         if self._value_type == list:
             for value in self.value:
@@ -29,7 +29,7 @@ class DemezKeyValue(DemezKeyValueBase):
         self.line_num = line_num
         self.file_path = file_path
         
-    def ToString(self, depth=0, indent=4, use_tabs=True, use_quotes_for_keys=True):
+    def ToString(self, depth: int = 0, indent: int = 1, use_tabs: bool = True, use_quotes_for_keys: bool = True) -> str:
         if use_tabs:
             space = "{0}".format("\t" * (indent * depth))
         else:
@@ -72,98 +72,112 @@ class DemezKeyValue(DemezKeyValueBase):
         else:
             return string
         
-    def AddItem(self, key, value):
+    def AddItem(self, key: str, value=""):  # -> DemezKeyValue:
         if self._value_type == list:
             sub_dkv = DemezKeyValue(self, key, value, file_path=self.file_path)
             self.value.append(sub_dkv)
             return sub_dkv
         
-    def GetItem(self, item_key):
+    # if the key exists, change the settings of that key
+    # otherwise add a new one
+    def AddItemSingle(self, key: str, value=""):  # -> DemezKeyValue:
+        sub_dkv = self.GetItem(key)
+        if not sub_dkv:
+            sub_dkv = DemezKeyValue(self, key, value, file_path=self.file_path)
+            self.value.append(sub_dkv)
+        else:
+            sub_dkv.value = value
+        return sub_dkv
+        
+    def GetItem(self, item_key: str):  # -> DemezKeyValue:
         if self._value_type == list:
             for value in self.value:
                 if value.key == item_key:
                     return value
         return None
         
-    def GetItemValue(self, item_key):
+    def HasItem(self, item_key: str) -> bool:
+        if self.GetItem(item_key):
+            return True
+        return False
+
+    # returns either a string or a list
+    def GetItemValue(self, item_key: str):
         if self._value_type == list:
             for item in self.value:
                 if item.key == item_key:
                     return item.value
             return ""
         
-    def GetInt(self):
+    def GetInt(self) -> int:
         if self._value_type != list:
             try:
                 return int(self.value)
             except ValueError:
-                return None
+                return int()  # None
         
-    def GetFloat(self):
+    def GetFloat(self) -> float:
         if self._value_type != list:
             try:
                 return float(self.value)
             except ValueError:
-                return None
+                return float()  # None
         
-    def GetItemIntValue(self, item_key):
-        if self._value_type != list:
+    def GetItemIntValue(self, item_key: str) -> int:
+        if self._value_type == list:
             try:
                 return int(self.GetItemValue(item_key))
             except ValueError:
-                return None
+                return int()  # None
         
-    def GetItemFloatValue(self, item_key):
-        if self._value_type != list:
+    def GetItemFloatValue(self, item_key: str) -> float:
+        if self._value_type == list:
             try:
                 return float(self.GetItemValue(item_key))
             except ValueError:
-                return None
+                return float()  # None
         
-    def GetAllKeysInItems(self):
+    def GetAllKeysInItems(self) -> list:
         keys = []
         if self._value_type == list:
             [keys.append(kvi.key) for kvi in self.value]
         return keys
     
-    def GetIndexInParent(self):
+    def GetIndexInParent(self) -> int:
         return self.parent.value.index(self)
         
-    def Delete(self):
+    def Delete(self) -> None:
         if type(self.parent) == DemezKeyValueRoot:
             if type(self.parent.value) == list:
                 self.parent.value.remove(self)
         elif type(self.parent) == list:
             self.parent.remove(self)
-        
-        # does this work?
-        self = None
     
     # TODO: maybe remove these 2 functions?
-    def Unknown(self):
+    def Unknown(self) -> None:
         self.Warning("Unknown Key")
     
-    def InvalidOption(self, *valid_option_list):
+    def InvalidOption(self, *valid_option_list) -> None:
         print( "WARNING: Invalid Option" )
         print( "\tValid Options:\n\t\t" + '\n\t\t'.join(valid_option_list) )
         self.PrintInfo()
     
     # would be cool if i could change the colors on this
-    def FatalError(self, message):
+    def FatalError(self, message) -> None:
         print("FATAL ERROR: " + message)
         self.PrintInfo()
         quit()
     
     # should Error and FatalError be the same?
-    def Error(self, message):
+    def Error(self, message: str) -> None:
         print("ERROR: " + message)
         self.PrintInfo()
     
-    def Warning(self, message):
+    def Warning(self, message: str) -> None:
         print("WARNING: " + message)
         self.PrintInfo()
     
-    def PrintInfo(self):
+    def PrintInfo(self) -> None:
         if self.file_path:
             print("\tFile Path: " + self.file_path)
             
@@ -181,14 +195,12 @@ class DemezKeyValueRoot(DemezKeyValueBase):
         super().__init__()
         self.file_path = file_path
         self.value = []
+        self._value_type = list
         
-    def __iter__(self):
+    def __iter__(self) -> iter:
         return self.value.__iter__()
         
-    def __get__(self, instance, owner):
-        print("what the fuck is this")
-        
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> DemezKeyValue:
         return self.value[item]
         
     def __extend__(self, item):
@@ -203,34 +215,33 @@ class DemezKeyValueRoot(DemezKeyValueBase):
     def index(self, item):
         self.value.index(item)
         
-    def ToString(self, indent=4, use_tabs=True, use_quotes_for_keys=True):
+    def ToString(self, indent=1, use_tabs=True, use_quotes_for_keys=True):
         final_str = ""
         for dkv in self.value:
             final_str += dkv.ToString(0, indent, use_tabs, use_quotes_for_keys)
         return final_str
 
-    def AddItem(self, key, value):
+    def AddItem(self, key: str, value) -> DemezKeyValue:
         sub_dkv = DemezKeyValue(self, key, value, file_path=self.file_path)
         self.value.append(sub_dkv)
         return sub_dkv
 
-    def GetItem(self, item_key):
+    def GetItem(self, item_key: str) -> DemezKeyValue:
         for value in self.value:
             if value.key == item_key:
                 return value
-        return None
 
-    def GetItemValue(self, item_key):
+    def GetItemValue(self, item_key: str):
         for item in self.value:
             if item.key == item_key:
                 return item.value
         return ""
     
-    def UpdateFile(self, indent=4, use_tabs=True):
+    def UpdateFile(self, indent=4, use_tabs=True) -> None:
         pass
     
     
-def FromDict(dct):
+def FromDict(dct) -> DemezKeyValueRoot:
     dkv_root = DemezKeyValueRoot()
     
     for key, value in dct.items():
@@ -273,7 +284,7 @@ def _RecursiveList(parent, lst):
         parent.value.append(dkv)
         
         
-def FromString(string):
+def FromString(string) -> DemezKeyValueRoot:
     lexer = DemezKeyValuesLexer(file=string)
     dkv_root = DemezKeyValueRoot()
     CreateBlock(lexer, dkv_root)
@@ -282,7 +293,7 @@ def FromString(string):
     
 # TODO: maybe change to FromFile()?
 #  or should i change the others to ReadDict() and ReadString()?
-def ReadFile(path):
+def ReadFile(path) -> DemezKeyValueRoot:
     lexer = DemezKeyValuesLexer(path)
     dkv_root = DemezKeyValueRoot(path)
     CreateBlock(lexer, dkv_root, os.getcwd() + os.sep + path)
@@ -344,7 +355,7 @@ class DemezKeyValuesLexer:
         self.chars_item = {'{', '}'}
         self.chars_special = {'n': "\n"}
         
-    def NextValue(self):
+    def NextValue(self) -> str:
         value = ''
         while self.chari < self.file_len:
             char = self.file[self.chari]
@@ -387,7 +398,7 @@ class DemezKeyValuesLexer:
             return None
         return self.file[self.chari + 1]
 
-    def NextKey(self):
+    def NextKey(self) -> tuple:
         string = ''
         line_num = 0
         skip_list = {' ', '\t', '\n'}
@@ -430,7 +441,7 @@ class DemezKeyValuesLexer:
             
         return string, line_num
 
-    def NextSymbol(self):
+    def NextSymbol(self) -> str:
         while self.chari < self.file_len:
             char = self.file[self.chari]
 
@@ -455,10 +466,8 @@ class DemezKeyValuesLexer:
                 break
 
             self.chari += 1
-            
-        return None
 
-    def PeekSymbol(self):
+    def PeekSymbol(self) -> str:
         temp_chari = self.chari
         temp_linei = self.linei
         last_symbol = ''
@@ -485,10 +494,8 @@ class DemezKeyValuesLexer:
                 break
 
             temp_chari += 1
-            
-        return None
 
-    def NextCondition(self):
+    def NextCondition(self) -> str:
         condition = ''
         in_cond = False
         while self.chari < self.file_len:
@@ -527,7 +534,7 @@ class DemezKeyValuesLexer:
             
         return condition
     
-    def SkipComment(self):
+    def SkipComment(self) -> None:
         self.chari += 1
         char = self.file[self.chari]
         if char == '/':
@@ -550,7 +557,7 @@ class DemezKeyValuesLexer:
             
                 self.chari += 1
 
-    def ReadQuote(self, qchar):
+    def ReadQuote(self, qchar: str) -> str:
         quote = ''
         while self.chari < self.file_len:
             self.chari += 1
