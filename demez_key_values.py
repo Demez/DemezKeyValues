@@ -2,7 +2,6 @@
 # TODO: put this onto github, maybe MIT license?
 
 import os
-import codecs
 
 
 class DemezKeyValueBase:
@@ -78,9 +77,15 @@ class DemezKeyValue(DemezKeyValueBase):
             self.value.append(sub_dkv)
             return sub_dkv
         
-    # if the key exists, change the settings of that key
-    # otherwise add a new one
+    # maybe change to AddItemUpdate?
     def AddItemSingle(self, key: str, value=""):  # -> DemezKeyValue:
+        """
+        If an item with the same key already exists, update that one instead
+        otherwise, add a new one
+        :param key:
+        :param value:
+        :return DemezKeyValue:
+        """
         sub_dkv = self.GetItem(key)
         if not sub_dkv:
             sub_dkv = DemezKeyValue(self, key, value, file_path=self.file_path)
@@ -94,12 +99,9 @@ class DemezKeyValue(DemezKeyValueBase):
             for value in self.value:
                 if value.key == item_key:
                     return value
-        return None
         
     def HasItem(self, item_key: str) -> bool:
-        if self.GetItem(item_key):
-            return True
-        return False
+        return bool(self.GetItem(item_key))
 
     # returns either a string or a list
     def GetItemValue(self, item_key: str):
@@ -108,6 +110,12 @@ class DemezKeyValue(DemezKeyValueBase):
                 if item.key == item_key:
                     return item.value
             return ""
+
+    def SetItemValue(self, item_key: str, new_value) -> None:
+        if self._value_type == list:
+            for item in self.value:
+                if item.key == item_key:
+                    item.value = new_value
         
     def GetInt(self) -> int:
         if self._value_type != list:
@@ -128,14 +136,14 @@ class DemezKeyValue(DemezKeyValueBase):
             try:
                 return int(self.GetItemValue(item_key))
             except ValueError:
-                return int()  # None
+                pass
         
     def GetItemFloatValue(self, item_key: str) -> float:
         if self._value_type == list:
             try:
                 return float(self.GetItemValue(item_key))
             except ValueError:
-                return float()  # None
+                pass
         
     def GetAllKeysInItems(self) -> list:
         keys = []
@@ -144,9 +152,17 @@ class DemezKeyValue(DemezKeyValueBase):
         return keys
     
     def GetIndexInParent(self) -> int:
+        """
+        Return the index of the item in the parent key
+        :return:
+        """
         return self.parent.value.index(self)
         
     def Delete(self) -> None:
+        """
+        Removes this item from the parent key
+        :return:
+        """
         if type(self.parent) == DemezKeyValueRoot:
             if type(self.parent.value) == list:
                 self.parent.value.remove(self)
@@ -215,7 +231,7 @@ class DemezKeyValueRoot(DemezKeyValueBase):
     def index(self, item):
         self.value.index(item)
         
-    def ToString(self, indent=1, use_tabs=True, use_quotes_for_keys=True):
+    def ToString(self, indent: int = 1, use_tabs: bool = True, use_quotes_for_keys: bool = True):
         final_str = ""
         for dkv in self.value:
             final_str += dkv.ToString(0, indent, use_tabs, use_quotes_for_keys)
@@ -237,8 +253,37 @@ class DemezKeyValueRoot(DemezKeyValueBase):
                 return item.value
         return ""
     
-    def UpdateFile(self, indent=4, use_tabs=True) -> None:
-        pass
+    def UpdateFile(self, indent: int = 1, use_tabs: bool = True, use_quotes_for_keys: bool = True) -> bool:
+        """
+        file_path must be set before calling
+        Convert to string and write to file
+        :param indent:
+        :param use_tabs:
+        :param use_quotes_for_keys:
+        :return:
+        """
+        with open(self.file_path, "w", encoding="utf-8") as file:
+            file.write(self.ToString(indent, use_tabs, use_quotes_for_keys))
+        return True
+    
+    def UpdateFileSafe(self, indent: int = 1, use_tabs: bool = True, use_quotes_for_keys: bool = True) -> bool:
+        """
+        file_path must be set before calling
+        Adds .bak to the existing file's name if it exists,
+        Then write the new file, and then delete the backup if it exists
+        :param indent:
+        :param use_tabs:
+        :param use_quotes_for_keys:
+        :return:
+        """
+        if self.file_path:
+            if os.path.isfile(self.file_path):
+                os.rename(self.file_path, self.file_path + ".bak")
+            self.UpdateFile(indent, use_tabs, use_quotes_for_keys)
+            if os.path.isfile(self.file_path + ".bak"):
+                os.remove(self.file_path + ".bak")
+            return True
+        return False
     
     
 def FromDict(dct) -> DemezKeyValueRoot:
